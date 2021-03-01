@@ -19,9 +19,12 @@ package org.apache.kyuubi.engine.spark.operation
 
 import java.util.concurrent.ConcurrentHashMap
 
+import scala.collection.JavaConverters._
+
 import org.apache.spark.sql.SparkSession
 
 import org.apache.kyuubi.KyuubiSQLException
+import org.apache.kyuubi.engine.spark.shim.SparkCatalogShim
 import org.apache.kyuubi.operation.{Operation, OperationManager}
 import org.apache.kyuubi.session.{Session, SessionHandle}
 
@@ -57,7 +60,6 @@ class SparkSQLOperationManager private (name: String) extends OperationManager(n
     val spark = getSparkSession(session.handle)
     val operation = new ExecuteStatement(spark, session, statement, runAsync)
     addOperation(operation)
-
   }
 
   override def newGetTypeInfoOperation(session: Session): Operation = {
@@ -88,7 +90,12 @@ class SparkSQLOperationManager private (name: String) extends OperationManager(n
       tableName: String,
       tableTypes: java.util.List[String]): Operation = {
     val spark = getSparkSession(session.handle)
-    val op = new GetTables(spark, session, catalogName, schemaName, tableName, tableTypes)
+    val tTypes = if (tableTypes == null || tableTypes.isEmpty) {
+      SparkCatalogShim.sparkTableTypes
+    } else {
+      tableTypes.asScala.toSet
+    }
+    val op = new GetTables(spark, session, catalogName, schemaName, tableName, tTypes)
     addOperation(op)
   }
 

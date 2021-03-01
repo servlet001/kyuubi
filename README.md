@@ -21,14 +21,14 @@ and every improvement in the engine's capabilities can help Kyuubi's performance
 In addition, Kyuubi improves ad-hoc responsiveness through the engine caching,
 and enhances concurrency through horizontal scaling and load balancing.
 It provides complete authentication and authentication services to ensure data and metadata security.
-It provides robust high availability and load balancing to help you guarantee the SLA commitment.
+It provides robust high availability and load balancing to help you guarantee the SLA commitments.
 It provides a two-level elastic resource management architecture to effectively improve resource utilization while covering the performance and response requirements of all scenarios including interactive,
 or batch processing and point queries, or full table scans.
 It embraces Spark and builds an ecosystem on top of it,
 which allows Kyuubi to quickly expand its existing ecosystem and introduce new features,
 such as cloud-native support and `Data Lake/Lake House` support.
 
-Kyuubi's vision is to build on top of Apache Spark and Data Lake technologies to unify the portal and become an ideal data lake management platform.
+The vision of Kyuubi is to build on top of Apache Spark and Data Lake technologies to unify the portal and become an ideal data lake management platform.
 It can support data processing e.g. ETL, and analytics e.g. BI in a pure SQL way.
 All workloads can be done on one platform, using one copy of data, with one SQL interface.
 
@@ -43,7 +43,7 @@ You can find the specific version of Kyuubi documentation as listed below.
 - [v1.0.1](https://kyuubi.readthedocs.io/en/v1.0.1/)
 - [v1.0.0](https://kyuubi.readthedocs.io/en/v1.0.0/)
 
-For 0.8 and earlier versions, please check the [project docs folder](https://github.com/yaooqinn/kyuubi/tree/branch-0.7/docs) directly.
+For 0.8 and earlier versions, please check the [Github Pages](https://yaooqinn.github.io/kyuubi/) directly.
 
 ## Quick Start
 
@@ -63,9 +63,15 @@ All bits of help are welcome. You can make various types of contributions to Kyu
 - Promote to others
 - Click the star button if you like this project
 
+Before you start, we recommend that you check the [Contribution Guidelines](https://kyuubi.readthedocs.io/en/latest/community/contributions.html) first.
+
 ## Aside
 
 The project took its name from a character of a popular Japanese manga - `Naruto`.
 The character is named `Kyuubi Kitsune/Kurama`, which is a nine-tailed fox in mythology.
 `Kyuubi` spread the power and spirit of fire, which is used here to represent the powerful [Apache Spark](http://spark.apache.org).
-It's nine tails stands for end-to end multi-tenancy support of this project.
+Its nine tails stands for end-to-end multi-tenancy support of this project.
+
+## License
+
+This project is licensed under the Apache 2.0 License. See the [LICENSE](./LICENSE) file for details.

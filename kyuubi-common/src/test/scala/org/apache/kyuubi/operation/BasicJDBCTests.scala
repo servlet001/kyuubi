@@ -17,8 +17,6 @@
 
 package org.apache.kyuubi.operation
 
-import java.sql.ResultSet
-
 import org.apache.kyuubi.Utils
 import org.apache.kyuubi.operation.meta.ResultSetSchemaConstant._
 
@@ -34,38 +32,28 @@ trait BasicJDBCTests extends JDBCTestUtils {
   }
 
   test("get schemas") {
-    def checkResult(rs: ResultSet, dbNames: Seq[String]): Unit = {
-      val expected = dbNames.iterator
-      while(rs.next() || expected.hasNext) {
-        assert(rs.getString("TABLE_SCHEM") === expected.next)
-        assert(rs.getString("TABLE_CATALOG").isEmpty)
-      }
-      // Make sure there are no more elements
-      assert(!rs.next())
-      assert(!expected.hasNext, "All expected schemas should be visited")
-    }
-
     val dbs = Seq("db1", "db2", "db33", "db44")
     val dbDflts = Seq("default", "global_temp")
 
+    val catalog = "spark_catalog"
     withDatabases(dbs: _*) { statement =>
       dbs.foreach(db => statement.execute(s"CREATE DATABASE IF NOT EXISTS $db"))
       val metaData = statement.getConnection.getMetaData
 
       Seq("", "*", "%", null, ".*", "_*", "_%", ".%") foreach { pattern =>
-        checkResult(metaData.getSchemas(null, pattern), dbs ++ dbDflts)
+        checkGetSchemas(metaData.getSchemas(catalog, pattern), dbs ++ dbDflts, catalog)
       }
 
-      Seq("db%", "db*") foreach { pattern =>
-        checkResult(metaData.getSchemas(null, pattern), dbs)
+      Seq("db%", "db.*") foreach { pattern =>
+        checkGetSchemas(metaData.getSchemas(catalog, pattern), dbs, catalog)
       }
 
       Seq("db_", "db.") foreach { pattern =>
-        checkResult(metaData.getSchemas(null, pattern), dbs.take(2))
+        checkGetSchemas(metaData.getSchemas(catalog, pattern), dbs.take(2), catalog)
       }
 
-      checkResult(metaData.getSchemas(null, "db1"), Seq("db1"))
-      checkResult(metaData.getSchemas(null, "db_not_exist"), Seq.empty)
+      checkGetSchemas(metaData.getSchemas(catalog, "db1"), Seq("db1"), catalog)
+      checkGetSchemas(metaData.getSchemas(catalog, "db_not_exist"), Seq.empty, catalog)
     }
   }
 
@@ -76,7 +64,7 @@ trait BasicJDBCTests extends JDBCTestUtils {
     val view_global_test = "view_2_test"
     val tables = Seq(table_test, table_external_test, view_test, view_global_test)
     val schemas = Seq("default", "default", "default", "global_temp")
-    val tableTypes = Seq("MANAGED", "EXTERNAL", "VIEW", "VIEW")
+    val tableTypes = Seq("TABLE", "TABLE", "VIEW", "VIEW")
     withJdbcStatement(view_test, view_global_test, table_test, view_test) { statement =>
       statement.execute(
         s"CREATE TABLE IF NOT EXISTS $table_test(key int) USING parquet COMMENT '$table_test'")
@@ -92,7 +80,8 @@ trait BasicJDBCTests extends JDBCTestUtils {
       val rs1 = metaData.getTables(null, null, null, null)
       var i = 0
       while(rs1.next()) {
-        assert(rs1.getString(TABLE_CAT).isEmpty)
+        val catalogName = rs1.getString(TABLE_CAT)
+        assert(catalogName === "spark_catalog" || catalogName === null)
         assert(rs1.getString(TABLE_SCHEM) === schemas(i))
         assert(rs1.getString(TABLE_NAME) == tables(i))
         assert(rs1.getString(TABLE_TYPE) == tableTypes(i))

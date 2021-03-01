@@ -15,18 +15,25 @@
  * limitations under the License.
  */
 
-package org.apache.kyuubi
+package org.apache.kyuubi.engine.spark.operation
 
-import org.apache.hive.service.rpc.thrift.{TRow, TRowSet, TStatus, TStatusCode}
+import org.apache.kyuubi.engine.spark.WithSparkSQLEngine
+import org.apache.kyuubi.operation.BasicIcebergJDBCTests
 
-object ThriftUtils {
+class SparkIcebergOperationSuite extends WithSparkSQLEngine with BasicIcebergJDBCTests {
+  override protected def jdbcUrl: String = getJdbcUrl
 
-  def verifyTStatus(tStatus: TStatus): Unit = {
-    if (tStatus.getStatusCode != TStatusCode.SUCCESS_STATUS) {
-      throw KyuubiSQLException(tStatus)
+  override def beforeAll(): Unit = {
+    for ((k, v) <- icebergConfigs) {
+      System.setProperty(k, v)
     }
+    super.beforeAll()
   }
 
-  val EMPTY_ROW_SET = new TRowSet(0, new java.util.ArrayList[TRow](0))
-
+  override def afterAll(): Unit = {
+    super.afterAll()
+    for ((k, _) <- icebergConfigs) {
+      System.clearProperty(k)
+    }
+  }
 }

@@ -17,15 +17,21 @@
 
 package org.apache.kyuubi.operation
 
-import java.sql.{DriverManager, Statement}
+import java.sql.{DriverManager, ResultSet, Statement}
 import java.util.Locale
 
+import org.apache.hive.service.rpc.thrift.{TCLIService, TCloseSessionReq, TOpenSessionReq, TSessionHandle}
+import org.apache.thrift.protocol.TBinaryProtocol
+import org.apache.thrift.transport.TSocket
+
 import org.apache.kyuubi.{KyuubiFunSuite, Utils}
+import org.apache.kyuubi.service.authentication.PlainSASLHelper
 
 trait JDBCTestUtils extends KyuubiFunSuite {
 
   protected val dftSchema = "default"
   protected val user: String = Utils.currentUser
+  protected val patterns = Seq("", "*", "%", null, ".*", "_*", "_%", ".%")
   protected def jdbcUrl: String
 
   protected def withMultipleConnectionJdbcStatement(
@@ -58,7 +64,7 @@ trait JDBCTestUtils extends KyuubiFunSuite {
     try {
       statements.zip(fs).foreach { case (s, f) => f(s) }
     } finally {
-      dbNames.foreach { name =>
+      dbNames.reverse.foreach { name =>
         statements.head.execute(s"DROP DATABASE IF EXISTS $name")
       }
       info("Closing statements")
@@ -71,5 +77,56 @@ trait JDBCTestUtils extends KyuubiFunSuite {
 
   protected def withJdbcStatement(tableNames: String*)(f: Statement => Unit): Unit = {
     withMultipleConnectionJdbcStatement(tableNames: _*)(f)
+  }
+
+  protected def withThriftClient(f: TCLIService.Iface => Unit): Unit = {
+    val hostAndPort = jdbcUrl.stripPrefix("jdbc:hive2://").split("/;").head.split(":")
+    val host = hostAndPort.head
+    val port = hostAndPort(1).toInt
+    val socket = new TSocket(host, port)
+    val transport = PlainSASLHelper.getPlainTransport(Utils.currentUser, "anonymous", socket)
+
+    val protocol = new TBinaryProtocol(transport)
+    val client = new TCLIService.Client(protocol)
+    transport.open()
+    try {
+      f(client)
+    } finally {
+      socket.close()
+    }
+  }
+
+  protected def withSessionHandle(f: (TCLIService.Iface, TSessionHandle) => Unit): Unit = {
+    withThriftClient { client =>
+      val req = new TOpenSessionReq()
+      req.setUsername(user)
+      req.setPassword("anonymous")
+      val resp = client.OpenSession(req)
+      val handle = resp.getSessionHandle
+
+      try {
+        f(client, handle)
+      } finally {
+        val tCloseSessionReq = new TCloseSessionReq(handle)
+        try {
+          client.CloseSession(tCloseSessionReq)
+        } catch {
+          case e: Exception => error(s"Failed to close $handle", e)
+        }
+      }
+    }
+  }
+
+  protected def checkGetSchemas(
+      rs: ResultSet, dbNames: Seq[String], catalogName: String = ""): Unit = {
+    var count = 0
+    while(rs.next()) {
+      count += 1
+      assert(dbNames.contains(rs.getString("TABLE_SCHEM")))
+      assert(rs.getString("TABLE_CATALOG") === catalogName)
+    }
+    // Make sure there are no more elements
+    assert(!rs.next())
+    assert(dbNames.size === count, "All expected schemas should be visited")
   }
 }
